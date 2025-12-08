@@ -1,0 +1,41 @@
+ACME Corporation Employee Handbook
+==================================
+
+Chapter 1: Vacation Policy
+--------------------------
+All full-time employees are entitled to paid time off (PTO) based on their tenure:
+- 0-2 years: 15 days per year
+- 2-5 years: 20 days per year
+- 5+ years: 25 days per year
+
+Vacation requests must be submitted at least 2 weeks in advance through the HR portal.
+Unused vacation days can be carried over to the next year, up to a maximum of 5 days.
+
+Chapter 2: Remote Work Policy
+-----------------------------
+Employees may work remotely up to 3 days per week with manager approval.
+Core collaboration hours are 10 AM to 3 PM in your local timezone.
+All remote work must be conducted from a secure, private location.
+VPN connection is required when accessing company resources remotely.
+
+Chapter 3: Expense Reimbursement
+--------------------------------
+Business expenses must be submitted within 30 days of the expense date.
+Receipts are required for all expenses over $25.
+Pre-approval is required for expenses exceeding $500.
+Travel expenses include: airfare (economy class), hotels (up to $200/night), and meals (up to $75/day).
+
+Chapter 4: Professional Development
+-----------------------------------
+Each employee has an annual learning budget of $2,000.
+Approved uses include: conferences, online courses, books, and certifications.
+Time off for professional development must be coordinated with your manager.
+Employees are encouraged to share learnings with their teams through presentations or documentation.
+
+Chapter 5: Health and Wellness
+------------------------------
+The company provides comprehensive health insurance for all full-time employees.
+Dental and vision coverage is included at no additional cost.
+A gym membership reimbursement of up to $50/month is available.
+Mental health resources include access to counseling services through our EAP program.
+
