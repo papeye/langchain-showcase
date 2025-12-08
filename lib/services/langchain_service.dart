@@ -1,11 +1,24 @@
 import 'dart:convert';
 import 'package:langchain/langchain.dart';
 import 'package:langchain_openai/langchain_openai.dart';
+import 'package:langchain_google/langchain_google.dart';
+
+enum LLMProvider {
+  openai('OpenAI', 'gpt-4o-mini', 'sk-'),
+  gemini('Google Gemini', 'gemini-1.5-flash', 'AI');
+
+  final String displayName;
+  final String defaultModel;
+  final String keyPrefix;
+
+  const LLMProvider(this.displayName, this.defaultModel, this.keyPrefix);
+}
 
 class LangChainService {
   static LangChainService? _instance;
   String? _apiKey;
-  ChatOpenAI? _model;
+  LLMProvider _provider = LLMProvider.openai;
+  BaseChatModel? _model;
 
   LangChainService._();
 
@@ -15,21 +28,54 @@ class LangChainService {
   }
 
   bool get isConfigured => _apiKey != null && _apiKey!.isNotEmpty;
+  LLMProvider get currentProvider => _provider;
+  String? get apiKey => _apiKey;
+
+  void setProvider(LLMProvider provider) {
+    if (_provider != provider) {
+      _provider = provider;
+      _apiKey = null;
+      _model = null;
+      _memory = null;
+      _conversationChain = null;
+      _vectorStore = null;
+      _documentsLoaded = false;
+    }
+  }
 
   void setApiKey(String apiKey) {
     _apiKey = apiKey;
-    _model = ChatOpenAI(
-      apiKey: apiKey,
-      defaultOptions: const ChatOpenAIOptions(
-        model: 'gpt-4o-mini',
-        temperature: 0.7,
-      ),
-    );
+    _initializeModel();
   }
 
-  ChatOpenAI get model {
+  void _initializeModel() {
+    switch (_provider) {
+      case LLMProvider.openai:
+        _model = ChatOpenAI(
+          apiKey: _apiKey!,
+          defaultOptions: const ChatOpenAIOptions(
+            model: 'gpt-4o-mini',
+            temperature: 0.7,
+          ),
+        );
+        break;
+      case LLMProvider.gemini:
+        _model = ChatGoogleGenerativeAI(
+          apiKey: _apiKey!,
+          defaultOptions: const ChatGoogleGenerativeAIOptions(
+            model: 'gemini-flash-latest',
+            temperature: 0.7,
+          ),
+        );
+        break;
+    }
+  }
+
+  BaseChatModel get model {
     if (_model == null) {
-      throw Exception('API key not configured. Please set your OpenAI API key first.');
+      throw Exception(
+        'API key not configured. Please set your ${_provider.displayName} API key first.',
+      );
     }
     return _model!;
   }
@@ -45,10 +91,7 @@ class LangChainService {
 
     final chain = prompt.pipe(model).pipe(const StringOutputParser());
 
-    final result = await chain.invoke({
-      'adjective': adjective,
-      'topic': topic,
-    });
+    final result = await chain.invoke({'adjective': adjective, 'topic': topic});
 
     return result;
   }
@@ -59,10 +102,7 @@ class LangChainService {
 
   void resetConversation() {
     _memory = ConversationBufferMemory(returnMessages: true);
-    _conversationChain = ConversationChain(
-      llm: model,
-      memory: _memory!,
-    );
+    _conversationChain = ConversationChain(llm: model, memory: _memory!);
   }
 
   Future<String> chat(String message) async {
@@ -143,7 +183,15 @@ Return ONLY valid JSON, no other text.
     final chunks = splitter.splitDocuments(docs);
 
     // Create embeddings and vector store
-    final embeddings = OpenAIEmbeddings(apiKey: _apiKey!);
+    // Note: For Gemini, we still use OpenAI embeddings as they're more widely supported
+    // In a production app, you might want to use Google's embedding API
+    Embeddings embeddings;
+    if (_provider == LLMProvider.openai) {
+      embeddings = OpenAIEmbeddings(apiKey: _apiKey!);
+    } else {
+      // Gemini uses Google's embedding model
+      embeddings = GoogleGenerativeAIEmbeddings(apiKey: _apiKey!);
+    }
 
     _vectorStore = MemoryVectorStore(embeddings: embeddings);
     await _vectorStore!.addDocuments(documents: chunks);
@@ -180,10 +228,7 @@ Answer:
 
     final chain = prompt.pipe(model).pipe(const StringOutputParser());
 
-    return await chain.invoke({
-      'context': context,
-      'question': question,
-    });
+    return await chain.invoke({'context': context, 'question': question});
   }
 
   void clearDocuments() {

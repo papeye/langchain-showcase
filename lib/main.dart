@@ -6,8 +6,7 @@ import 'screens/basic_chain_screen.dart';
 import 'screens/memory_screen.dart';
 import 'screens/structured_output_screen.dart';
 import 'screens/rag_screen.dart';
-import 'widgets/api_key_dialog.dart';
-import 'services/langchain_service.dart';
+import 'widgets/provider_indicator.dart';
 
 void main() {
   runApp(const LangChainShowcaseApp());
@@ -179,52 +178,8 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildApiKeyIndicator() {
-    final isConfigured = LangChainService.instance.isConfigured;
-    
-    return GestureDetector(
-      onTap: () async {
-        final result = await ApiKeyDialog.show(context);
-        if (result) setState(() {});
-      },
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: isConfigured
-                ? AppTheme.tertiaryAccent.withValues(alpha: 0.15)
-                : AppTheme.warningAccent.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isConfigured
-                  ? AppTheme.tertiaryAccent.withValues(alpha: 0.3)
-                  : AppTheme.warningAccent.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                isConfigured ? Icons.key : Icons.key_off,
-                color: isConfigured
-                    ? AppTheme.tertiaryAccent
-                    : AppTheme.warningAccent,
-                size: 18,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                isConfigured ? 'Ready' : 'Set Key',
-                style: GoogleFonts.jetBrainsMono(
-                  color: isConfigured
-                      ? AppTheme.tertiaryAccent
-                      : AppTheme.warningAccent,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return ProviderIndicator(
+      onChanged: () => setState(() {}),
     );
   }
 

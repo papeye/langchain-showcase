@@ -23,6 +23,16 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
   final _controller = TextEditingController();
   bool _obscureText = true;
   String? _error;
+  late LLMProvider _selectedProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedProvider = LangChainService.instance.currentProvider;
+    if (LangChainService.instance.apiKey != null) {
+      _controller.text = LangChainService.instance.apiKey!;
+    }
+  }
 
   @override
   void dispose() {
@@ -36,11 +46,14 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
       setState(() => _error = 'Please enter your API key');
       return;
     }
-    if (!apiKey.startsWith('sk-')) {
-      setState(() => _error = 'Invalid API key format');
+
+    // Validate key format based on provider
+    if (_selectedProvider == LLMProvider.openai && !apiKey.startsWith('sk-')) {
+      setState(() => _error = 'OpenAI API keys should start with "sk-"');
       return;
     }
 
+    LangChainService.instance.setProvider(_selectedProvider);
     LangChainService.instance.setApiKey(apiKey);
     Navigator.of(context).pop(true);
   }
@@ -54,7 +67,7 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
         side: BorderSide(color: AppTheme.surfaceColor),
       ),
       child: Container(
-        width: 450,
+        width: 500,
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -79,7 +92,7 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'OpenAI API Key',
+                      'Configure LLM Provider',
                       style: GoogleFonts.jetBrainsMono(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -88,7 +101,7 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Required to run the examples',
+                      'Switch providers with just one line of code!',
                       style: GoogleFonts.jetBrainsMono(
                         fontSize: 12,
                         color: AppTheme.textMuted,
@@ -98,16 +111,48 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
+
+            // Provider selection
             Text(
-              'Enter your OpenAI API key to enable the LangChain demos. Your key is stored locally and never shared.',
+              'Select Provider',
               style: GoogleFonts.jetBrainsMono(
-                fontSize: 13,
+                fontSize: 12,
                 color: AppTheme.textSecondary,
-                height: 1.5,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            Row(
+              children: LLMProvider.values.map((provider) {
+                final isSelected = _selectedProvider == provider;
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: provider != LLMProvider.values.last ? 12 : 0,
+                    ),
+                    child: _buildProviderOption(provider, isSelected),
+                  ),
+                );
+              }).toList(),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Code preview showing how easy the switch is
+            _buildCodePreview(),
+
+            const SizedBox(height: 24),
+
+            // API Key input
+            Text(
+              '${_selectedProvider.displayName} API Key',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
             TextField(
               controller: _controller,
               obscureText: _obscureText,
@@ -116,7 +161,9 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
                 fontSize: 14,
               ),
               decoration: InputDecoration(
-                hintText: 'sk-...',
+                hintText: _selectedProvider == LLMProvider.openai
+                    ? 'sk-...'
+                    : 'AIza...',
                 prefixIcon: const Icon(Icons.vpn_key_outlined, size: 20),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -129,6 +176,18 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
               ),
               onSubmitted: (_) => _saveApiKey(),
             ),
+
+            const SizedBox(height: 8),
+            Text(
+              _selectedProvider == LLMProvider.openai
+                  ? 'Get your key at platform.openai.com'
+                  : 'Get your key at aistudio.google.com',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 11,
+                color: AppTheme.textMuted,
+              ),
+            ),
+
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -137,16 +196,14 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
                   onPressed: () => Navigator.of(context).pop(false),
                   child: Text(
                     'Cancel',
-                    style: GoogleFonts.jetBrainsMono(
-                      color: AppTheme.textMuted,
-                    ),
+                    style: GoogleFonts.jetBrainsMono(color: AppTheme.textMuted),
                   ),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed: _saveApiKey,
                   icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Save Key'),
+                  label: const Text('Save & Connect'),
                 ),
               ],
             ),
@@ -155,5 +212,118 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
       ),
     );
   }
-}
 
+  Widget _buildProviderOption(LLMProvider provider, bool isSelected) {
+    final color = provider == LLMProvider.openai
+        ? AppTheme.tertiaryAccent
+        : AppTheme.secondaryAccent;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedProvider = provider;
+          _error = null;
+          _controller.clear();
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.15)
+              : AppTheme.surfaceColor.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? color.withValues(alpha: 0.5)
+                : AppTheme.surfaceColor.withValues(alpha: 0.5),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              provider == LLMProvider.openai
+                  ? Icons.auto_awesome
+                  : Icons.diamond_outlined,
+              color: isSelected ? color : AppTheme.textMuted,
+              size: 28,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              provider.displayName,
+              style: GoogleFonts.jetBrainsMono(
+                color: isSelected ? color : AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              provider.defaultModel,
+              style: GoogleFonts.jetBrainsMono(
+                color: AppTheme.textMuted,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCodePreview() {
+    final code = _selectedProvider == LLMProvider.openai
+        ? '''final model = ChatOpenAI(
+  apiKey: apiKey,
+  defaultOptions: ChatOpenAIOptions(
+    model: 'gpt-4o-mini',
+  ),
+);'''
+        : '''final model = ChatGoogleGenerativeAI(
+  apiKey: apiKey,
+  defaultOptions: ChatGoogleGenerativeAIOptions(
+    model: 'gemini-flash-latest',
+  ),
+);''';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.surfaceColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.code, size: 14, color: AppTheme.warningAccent),
+              const SizedBox(width: 8),
+              Text(
+                'That\'s all the code that changes!',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 11,
+                  color: AppTheme.warningAccent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            code,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 11,
+              color: AppTheme.textPrimary,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

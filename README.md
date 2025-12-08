@@ -15,6 +15,26 @@ This app is designed for tech talks and demonstrations, showing how LangChain so
 3. **Structured Output** - Get usable JSON data instead of free text
 4. **RAG** - Talk to your documents (Retrieval-Augmented Generation)
 
+## 🔄 Multi-Provider Support
+
+One of LangChain's superpowers is **provider abstraction**. Switch between OpenAI and Google Gemini with just one line of code change!
+
+```dart
+// OpenAI
+final model = ChatOpenAI(
+  apiKey: apiKey,
+  defaultOptions: ChatOpenAIOptions(model: 'gpt-4o-mini'),
+);
+
+// Google Gemini - same interface, different provider!
+final model = ChatGoogleGenerativeAI(
+  apiKey: apiKey,
+  defaultOptions: ChatGoogleGenerativeAIOptions(model: 'gemini-1.5-flash'),
+);
+```
+
+Both models implement `BaseChatModel`, so all your chains work with either!
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -121,6 +141,7 @@ final answer = await chain.invoke('What is the vacation policy?');
 dependencies:
   langchain: ^0.8.0
   langchain_openai: ^0.8.0
+  langchain_google: ^0.7.0  # Gemini support!
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.2
   flutter_markdown: ^0.7.7
