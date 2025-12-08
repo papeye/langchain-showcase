@@ -14,9 +14,7 @@ class ToolsScreen extends StatefulWidget {
 }
 
 class _ToolsScreenState extends State<ToolsScreen> {
-  final _queryController = TextEditingController(
-    text: 'What is 253 times 12?',
-  );
+  final _queryController = TextEditingController(text: 'What is 253 times 12?');
   AgentResult? _result;
   String? _error;
   bool _isLoading = false;
@@ -25,35 +23,37 @@ class _ToolsScreenState extends State<ToolsScreen> {
     'What is 253 times 12?',
     'What time is it right now?',
     'What\'s the weather in Tokyo?',
-    'Calculate 1500 divided by 25',
-    'What\'s the weather like in Paris?',
+    'Search for latest Flutter news',
+    'Who won the last Super Bowl?',
+    'What is LangChain used for?',
   ];
 
-  static const String _codeExample = '''// 1. Define tools (functions the AI can call)
-final calculatorTool = Tool.fromFunction(
-  name: 'calculator',
-  description: 'Useful for math calculations.',
-  func: (input) => calculate(input),
-);
+  static const String _codeExample =
+      '''// 1. Define tools (functions the AI can call)
+final calculatorTool = CalculatorTool();
+final webSearchTool = TavilySearchTool();
 
-final weatherTool = Tool.fromFunction(
-  name: 'get_weather',
-  description: 'Gets weather for a city.',
-  func: (city) => fetchWeather(city),
-);
+// TavilySearchTool calls real web search API!
+class TavilySearchTool extends StringTool {
+  Future<String> invokeInternal(String query) async {
+    final response = await http.post(
+      Uri.parse('https://api.tavily.com/search'),
+      body: {'query': query, 'api_key': apiKey},
+    );
+    return parseResults(response);
+  }
+}
 
-// 2. Create the Agent
+// 2. Create Agent with tools
 final agent = OpenAIToolsAgent.fromLLMAndTools(
   llm: model,
-  tools: [calculatorTool, weatherTool],
+  tools: [calculatorTool, webSearchTool],
 );
 
-// 3. Create executor and run
-final executor = AgentExecutor(agent: agent);
+// 3. Run - AI decides which tool to use!
 final result = await executor.invoke({
-  'input': 'What is 50 * 2?'
-});
-// AI decides to call calculator → returns "100"''';
+  'input': 'Search for latest AI news'
+});''';
 
   @override
   void dispose() {
@@ -178,7 +178,10 @@ final result = await executor.invoke({
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF667eea).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -194,7 +197,10 @@ final result = await executor.invoke({
                 ),
               ),
               const SizedBox(height: 8),
-              Text('Tools & Agents', style: Theme.of(context).textTheme.displayLarge),
+              Text(
+                'Tools & Agents',
+                style: Theme.of(context).textTheme.displayLarge,
+              ),
               const SizedBox(height: 4),
               Text(
                 'AI that can call functions and get real-time data',
@@ -223,7 +229,11 @@ final result = await executor.invoke({
         children: [
           Row(
             children: [
-              Icon(Icons.lightbulb_outline, color: AppTheme.warningAccent, size: 20),
+              Icon(
+                Icons.lightbulb_outline,
+                color: AppTheme.warningAccent,
+                size: 20,
+              ),
               const SizedBox(width: 10),
               Text(
                 'Why Tools Matter',
@@ -258,7 +268,8 @@ final result = await executor.invoke({
     final tools = [
       ('🔢', 'calculator', 'Math calculations'),
       ('⏰', 'current_time', 'Current date/time'),
-      ('🌤️', 'get_weather', 'Weather by city'),
+      ('🌤️', 'get_weather', 'Weather by city (mock)'),
+      ('🔍', 'web_search', 'Real web search (Tavily)'),
     ];
 
     return Container(
@@ -279,38 +290,43 @@ final result = await executor.invoke({
             ),
           ),
           const SizedBox(height: 12),
-          ...tools.map((tool) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                Text(tool.$1, style: const TextStyle(fontSize: 16)),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF667eea).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    tool.$2,
-                    style: GoogleFonts.jetBrainsMono(
-                      color: const Color(0xFF667eea),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+          ...tools.map(
+            (tool) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Text(tool.$1, style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF667eea).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      tool.$2,
+                      style: GoogleFonts.jetBrainsMono(
+                        color: const Color(0xFF667eea),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  tool.$3,
-                  style: GoogleFonts.jetBrainsMono(
-                    color: AppTheme.textMuted,
-                    fontSize: 11,
+                  const SizedBox(width: 10),
+                  Text(
+                    tool.$3,
+                    style: GoogleFonts.jetBrainsMono(
+                      color: AppTheme.textMuted,
+                      fontSize: 11,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          )),
+          ),
         ],
       ),
     );
@@ -329,14 +345,20 @@ final result = await executor.invoke({
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF667eea).withValues(alpha: 0.3)),
+        border: Border.all(
+          color: const Color(0xFF667eea).withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.account_tree, color: const Color(0xFF667eea), size: 18),
+              Icon(
+                Icons.account_tree,
+                color: const Color(0xFF667eea),
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text(
                 'How it works',
@@ -349,13 +371,33 @@ final result = await executor.invoke({
             ],
           ),
           const SizedBox(height: 16),
-          _buildFlowStep(1, '👤 User', '"What\'s 253 × 12?"', AppTheme.textPrimary),
+          _buildFlowStep(
+            1,
+            '👤 User',
+            '"What\'s 253 × 12?"',
+            AppTheme.textPrimary,
+          ),
           _buildFlowArrow(),
-          _buildFlowStep(2, '🤖 LLM', 'I need to use calculator tool', AppTheme.secondaryAccent),
+          _buildFlowStep(
+            2,
+            '🤖 LLM',
+            'I need to use calculator tool',
+            AppTheme.secondaryAccent,
+          ),
           _buildFlowArrow(),
-          _buildFlowStep(3, '⚙️ Tool', 'calculator("253 * 12") → 3036', AppTheme.tertiaryAccent),
+          _buildFlowStep(
+            3,
+            '⚙️ Tool',
+            'calculator("253 * 12") → 3036',
+            AppTheme.tertiaryAccent,
+          ),
           _buildFlowArrow(),
-          _buildFlowStep(4, '🤖 LLM', '"253 times 12 equals 3036"', AppTheme.primaryAccent),
+          _buildFlowStep(
+            4,
+            '🤖 LLM',
+            '"253 times 12 equals 3036"',
+            AppTheme.primaryAccent,
+          ),
         ],
       ),
     );
@@ -429,7 +471,9 @@ final result = await executor.invoke({
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF667eea).withValues(alpha: 0.3)),
+        border: Border.all(
+          color: const Color(0xFF667eea).withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,7 +521,10 @@ final result = await executor.invoke({
                 onTap: () => setState(() => _queryController.text = query),
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.surfaceColor.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(6),
@@ -511,7 +558,11 @@ final result = await executor.invoke({
                         color: AppTheme.textPrimary,
                       ),
                     )
-                  : Icon(Icons.play_arrow, size: 20, color: AppTheme.textPrimary),
+                  : Icon(
+                      Icons.play_arrow,
+                      size: 20,
+                      color: AppTheme.textPrimary,
+                    ),
               label: Text(
                 _isLoading ? 'Running Agent...' : 'Run Agent',
                 style: TextStyle(color: AppTheme.textPrimary),
@@ -549,7 +600,10 @@ final result = await executor.invoke({
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppTheme.tertiaryAccent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -557,7 +611,11 @@ final result = await executor.invoke({
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.terminal, size: 14, color: AppTheme.tertiaryAccent),
+                    Icon(
+                      Icons.terminal,
+                      size: 14,
+                      color: AppTheme.tertiaryAccent,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Agent Execution',
@@ -612,28 +670,30 @@ final result = await executor.invoke({
 
   Widget _buildLoadingStep(String text) {
     return Row(
-      children: [
-        SizedBox(
-          width: 14,
-          height: 14,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: const Color(0xFF667eea),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          text,
-          style: GoogleFonts.jetBrainsMono(
-            color: AppTheme.textMuted,
-            fontSize: 12,
-          ),
-        ),
-      ],
-    ).animate(onPlay: (c) => c.repeat()).shimmer(
-      duration: const Duration(milliseconds: 1500),
-      color: const Color(0xFF667eea).withValues(alpha: 0.1),
-    );
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: const Color(0xFF667eea),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              text,
+              style: GoogleFonts.jetBrainsMono(
+                color: AppTheme.textMuted,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        )
+        .animate(onPlay: (c) => c.repeat())
+        .shimmer(
+          duration: const Duration(milliseconds: 1500),
+          color: const Color(0xFF667eea).withValues(alpha: 0.1),
+        );
   }
 
   Widget _buildErrorState() {
@@ -642,7 +702,9 @@ final result = await executor.invoke({
       decoration: BoxDecoration(
         color: AppTheme.primaryAccent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.primaryAccent.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: AppTheme.primaryAccent.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,7 +743,7 @@ final result = await executor.invoke({
           ..._result!.intermediateSteps.map((step) => _buildToolCallCard(step)),
           const SizedBox(height: 16),
         ],
-        
+
         // Final answer
         Container(
           width: double.infinity,
@@ -689,14 +751,20 @@ final result = await executor.invoke({
           decoration: BoxDecoration(
             color: const Color(0xFF667eea).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF667eea).withValues(alpha: 0.3)),
+            border: Border.all(
+              color: const Color(0xFF667eea).withValues(alpha: 0.3),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.chat_bubble, color: const Color(0xFF667eea), size: 16),
+                  Icon(
+                    Icons.chat_bubble,
+                    color: const Color(0xFF667eea),
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Final Answer',
@@ -731,7 +799,9 @@ final result = await executor.invoke({
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.tertiaryAccent.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: AppTheme.tertiaryAccent.withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -799,4 +869,3 @@ final result = await executor.invoke({
     );
   }
 }
-

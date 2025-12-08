@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:langchain/langchain.dart';
 import 'package:langchain_openai/langchain_openai.dart';
 import 'package:langchain_google/langchain_google.dart';
@@ -242,8 +243,14 @@ Answer:
     final calculatorTool = CalculatorTool();
     final currentTimeTool = CurrentTimeTool();
     final weatherTool = WeatherTool();
+    final webSearchTool = TavilySearchTool();
 
-    final tools = <Tool>[calculatorTool, currentTimeTool, weatherTool];
+    final tools = <Tool>[
+      calculatorTool,
+      currentTimeTool,
+      weatherTool,
+      webSearchTool,
+    ];
 
     // Create agent based on provider
     if (_provider == LLMProvider.openai) {
@@ -421,5 +428,71 @@ final class WeatherTool extends StringTool {
 
     final lowerCity = toolInput.toLowerCase().trim();
     return weathers[lowerCity] ?? '☀️ Pleasant weather, 20°C';
+  }
+}
+
+final class TavilySearchTool extends StringTool {
+  static const String _apiKey = 'REDACTED';
+
+  TavilySearchTool()
+    : super(
+        name: 'web_search',
+        description:
+            'Searches the web for current information. Use this when you need to find up-to-date information about any topic, news, facts, or when you don\'t know something. Input should be a search query.',
+      );
+
+  @override
+  Future<String> invokeInternal(
+    String toolInput, {
+    ToolOptions? options,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://api.tavily.com/search'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'api_key': _apiKey,
+          'query': toolInput,
+          'search_depth': 'basic',
+          'include_answer': true,
+          'include_raw_content': false,
+          'max_results': 3,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+        // If Tavily provides a direct answer, use it
+        if (data['answer'] != null && (data['answer'] as String).isNotEmpty) {
+          return data['answer'] as String;
+        }
+
+        // Otherwise, compile results from search
+        final results = data['results'] as List<dynamic>?;
+        if (results != null && results.isNotEmpty) {
+          final buffer = StringBuffer();
+          buffer.writeln('Search results for "$toolInput":');
+          buffer.writeln();
+
+          for (int i = 0; i < results.length && i < 3; i++) {
+            final result = results[i] as Map<String, dynamic>;
+            final title = result['title'] ?? 'No title';
+            final content = result['content'] ?? 'No content';
+            buffer.writeln('${i + 1}. $title');
+            buffer.writeln('   $content');
+            buffer.writeln();
+          }
+
+          return buffer.toString();
+        }
+
+        return 'No results found for: $toolInput';
+      } else {
+        return 'Search failed with status ${response.statusCode}';
+      }
+    } catch (e) {
+      return 'Error searching: $e';
+    }
   }
 }
