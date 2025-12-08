@@ -23,9 +23,9 @@ class _ToolsScreenState extends State<ToolsScreen> {
     'What is 253 times 12?',
     'What time is it right now?',
     'What\'s the weather in Tokyo?',
+    'Who won F1 race on 07.12.2025?',
     'Search for latest Flutter news',
-    'Who won the last Super Bowl?',
-    'What is LangChain used for?',
+    'What is LangChain?',
   ];
 
   static const String _codeExample =
@@ -729,20 +729,98 @@ final result = await executor.invoke({
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Show tool calls if any
-        if (_result!.intermediateSteps.isNotEmpty) ...[
-          Text(
-            'Tools Called:',
-            style: GoogleFonts.jetBrainsMono(
-              color: AppTheme.textMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+        // Tools section header
+        Row(
+          children: [
+            Icon(Icons.build_circle, color: AppTheme.tertiaryAccent, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              'Tools Used',
+              style: GoogleFonts.jetBrainsMono(
+                color: AppTheme.tertiaryAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: _result!.intermediateSteps.isNotEmpty
+                    ? AppTheme.tertiaryAccent.withValues(alpha: 0.2)
+                    : AppTheme.textMuted.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                _result!.intermediateSteps.isNotEmpty
+                    ? '${_result!.intermediateSteps.length}'
+                    : '0',
+                style: GoogleFonts.jetBrainsMono(
+                  color: _result!.intermediateSteps.isNotEmpty
+                      ? AppTheme.tertiaryAccent
+                      : AppTheme.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Show tool calls or "no tools" message
+        if (_result!.intermediateSteps.isNotEmpty)
+          ..._result!.intermediateSteps.map((step) => _buildToolCallCard(step))
+        else
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppTheme.surfaceColor.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: AppTheme.textMuted,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'AI answered directly without using any tools',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: AppTheme.textMuted,
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // Debug info
+                if (_result!.debugInfo != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Debug: ${_result!.debugInfo}',
+                    style: GoogleFonts.jetBrainsMono(
+                      color: AppTheme.warningAccent,
+                      fontSize: 9,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          ..._result!.intermediateSteps.map((step) => _buildToolCallCard(step)),
-          const SizedBox(height: 16),
-        ],
+
+        const SizedBox(height: 16),
 
         // Final answer
         Container(
@@ -792,7 +870,7 @@ final result = await executor.invoke({
     ).animate().fadeIn(duration: 300.ms);
   }
 
-  Widget _buildToolCallCard(AgentStep step) {
+  Widget _buildToolCallCard(AgentStepInfo step) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),

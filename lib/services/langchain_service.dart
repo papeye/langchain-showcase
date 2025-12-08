@@ -263,12 +263,27 @@ Answer:
       );
 
       final agent = OpenAIToolsAgent.fromLLMAndTools(llm: llm, tools: tools);
-      final executor = AgentExecutor(agent: agent);
+      final executor = AgentExecutor(
+        agent: agent,
+        returnIntermediateSteps: true,
+      );
 
       final result = await executor.invoke({'input': query});
+      final steps = _extractIntermediateSteps(result);
+
+      // Debug: show step type if extraction failed
+      String? debugInfo;
+      if (steps.isEmpty) {
+        final intermediate = result['intermediate_steps'];
+        if (intermediate is List && intermediate.isNotEmpty) {
+          debugInfo = 'Step type: ${intermediate.first.runtimeType}';
+        }
+      }
+
       return AgentResult(
         output: result['output'] as String,
-        intermediateSteps: _extractIntermediateSteps(result),
+        intermediateSteps: steps,
+        debugInfo: debugInfo,
       );
     } else {
       // For Gemini, use a simpler ReAct-style approach
@@ -282,28 +297,47 @@ Answer:
 
       // Use tool calling agent for Gemini
       final agent = ToolsAgent.fromLLMAndTools(llm: llm, tools: tools);
-      final executor = AgentExecutor(agent: agent);
+      final executor = AgentExecutor(
+        agent: agent,
+        returnIntermediateSteps: true,
+      );
 
       final result = await executor.invoke({'input': query});
+      final steps = _extractIntermediateSteps(result);
+
+      // Debug: show step type if extraction failed
+      String? debugInfo;
+      if (steps.isEmpty) {
+        final intermediate = result['intermediate_steps'];
+        if (intermediate is List && intermediate.isNotEmpty) {
+          debugInfo = 'Step type: ${intermediate.first.runtimeType}';
+        }
+      }
+
       return AgentResult(
         output: result['output'] as String,
-        intermediateSteps: _extractIntermediateSteps(result),
+        intermediateSteps: steps,
+        debugInfo: debugInfo,
       );
     }
   }
 
-  List<AgentStep> _extractIntermediateSteps(Map<String, dynamic> result) {
-    final steps = <AgentStep>[];
-    final intermediate = result['intermediateSteps'];
+  List<AgentStepInfo> _extractIntermediateSteps(Map<String, dynamic> result) {
+    final steps = <AgentStepInfo>[];
+
+    // The key is snake_case: intermediate_steps
+    final intermediate = result['intermediate_steps'];
 
     if (intermediate is List) {
       for (final step in intermediate) {
-        if (step is (AgentAction, String)) {
+        // The step is LangChain's AgentStep which has 'action' and 'observation'
+        if (step is AgentStep) {
+          final action = step.action;
           steps.add(
-            AgentStep(
-              toolName: step.$1.tool,
-              toolInput: step.$1.toolInput.toString(),
-              toolOutput: step.$2,
+            AgentStepInfo(
+              toolName: action.tool,
+              toolInput: _formatToolInput(action.toolInput),
+              toolOutput: step.observation,
             ),
           );
         }
@@ -312,21 +346,38 @@ Answer:
 
     return steps;
   }
+
+  String _formatToolInput(dynamic input) {
+    if (input is Map) {
+      // Extract the 'input' key if it exists, otherwise stringify
+      if (input.containsKey('input')) {
+        return input['input'].toString();
+      }
+      return input.values.first?.toString() ?? input.toString();
+    }
+    return input.toString();
+  }
 }
 
 class AgentResult {
   final String output;
-  final List<AgentStep> intermediateSteps;
+  final List<AgentStepInfo> intermediateSteps;
+  final String? debugInfo;
 
-  AgentResult({required this.output, required this.intermediateSteps});
+  AgentResult({
+    required this.output,
+    required this.intermediateSteps,
+    this.debugInfo,
+  });
 }
 
-class AgentStep {
+// Renamed to avoid conflict with LangChain's AgentStep
+class AgentStepInfo {
   final String toolName;
   final String toolInput;
   final String toolOutput;
 
-  AgentStep({
+  AgentStepInfo({
     required this.toolName,
     required this.toolInput,
     required this.toolOutput,
@@ -432,7 +483,7 @@ final class WeatherTool extends StringTool {
 }
 
 final class TavilySearchTool extends StringTool {
-  static const String _apiKey = 'REDACTED';
+  static const String _apiKey = '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';
 
   TavilySearchTool()
     : super(
