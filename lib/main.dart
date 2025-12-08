@@ -6,6 +6,7 @@ import 'screens/basic_chain_screen.dart';
 import 'screens/memory_screen.dart';
 import 'screens/structured_output_screen.dart';
 import 'screens/rag_screen.dart';
+import 'screens/tools_screen.dart';
 import 'widgets/provider_indicator.dart';
 
 void main() {
@@ -57,6 +58,11 @@ class _MainScreenState extends State<MainScreen> {
       label: 'RAG',
       color: const Color(0xFFf093fb),
     ),
+    _NavItem(
+      icon: Icons.build_circle,
+      label: 'Tools',
+      color: const Color(0xFF667eea),
+    ),
   ];
 
   Widget _getScreen() {
@@ -69,6 +75,8 @@ class _MainScreenState extends State<MainScreen> {
         return const StructuredOutputScreen();
       case 3:
         return const RagScreen();
+      case 4:
+        return const ToolsScreen();
       default:
         return const BasicChainScreen();
     }

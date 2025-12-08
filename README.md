@@ -14,6 +14,7 @@ This app is designed for tech talks and demonstrations, showing how LangChain so
 2. **Memory** - A chatbot that remembers your conversation
 3. **Structured Output** - Get usable JSON data instead of free text
 4. **RAG** - Talk to your documents (Retrieval-Augmented Generation)
+5. **Tools & Agents** - AI that can call functions and get real-time data
 
 ## 🔄 Multi-Provider Support
 
@@ -126,6 +127,36 @@ final chain = RetrievalQAChain.fromLlm(
 );
 final answer = await chain.invoke('What is the vacation policy?');
 ```
+
+### Example 5: Tools & Agents
+
+**Concept:** AI that can call functions to get real-time data
+
+Standard LLMs don't know what time it is or current weather. Tools let the AI call your functions when it needs data it doesn't have.
+
+```dart
+// Define tools
+final calculatorTool = CalculatorTool();
+final weatherTool = WeatherTool();
+
+// Create agent with tools
+final agent = OpenAIToolsAgent.fromLLMAndTools(
+  llm: model,
+  tools: [calculatorTool, weatherTool],
+);
+
+final executor = AgentExecutor(agent: agent);
+final result = await executor.invoke({
+  'input': 'What is 253 * 12?'
+});
+// AI decides to call calculator → "253 times 12 equals 3036"
+```
+
+**How it works:**
+1. 👤 User: "What's 253 × 12?"
+2. 🤖 LLM: "I need to use calculator tool"
+3. ⚙️ Tool: calculator("253 * 12") → 3036
+4. 🤖 LLM: "253 times 12 equals 3036"
 
 ## 🎨 Features
 

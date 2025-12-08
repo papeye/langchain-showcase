@@ -235,4 +235,191 @@ Answer:
     _vectorStore = null;
     _documentsLoaded = false;
   }
+
+  // Example 5: Tools & Agents
+  Future<AgentResult> runAgentWithTools(String query) async {
+    // Define tools using StringTool for simplicity
+    final calculatorTool = CalculatorTool();
+    final currentTimeTool = CurrentTimeTool();
+    final weatherTool = WeatherTool();
+
+    final tools = <Tool>[calculatorTool, currentTimeTool, weatherTool];
+
+    // Create agent based on provider
+    if (_provider == LLMProvider.openai) {
+      final llm = ChatOpenAI(
+        apiKey: _apiKey!,
+        defaultOptions: const ChatOpenAIOptions(
+          model: 'gpt-4o-mini',
+          temperature: 0,
+        ),
+      );
+
+      final agent = OpenAIToolsAgent.fromLLMAndTools(llm: llm, tools: tools);
+      final executor = AgentExecutor(agent: agent);
+
+      final result = await executor.invoke({'input': query});
+      return AgentResult(
+        output: result['output'] as String,
+        intermediateSteps: _extractIntermediateSteps(result),
+      );
+    } else {
+      // For Gemini, use a simpler ReAct-style approach
+      final llm = ChatGoogleGenerativeAI(
+        apiKey: _apiKey!,
+        defaultOptions: const ChatGoogleGenerativeAIOptions(
+          model: 'gemini-flash-latest',
+          temperature: 0,
+        ),
+      );
+
+      // Use tool calling agent for Gemini
+      final agent = ToolsAgent.fromLLMAndTools(llm: llm, tools: tools);
+      final executor = AgentExecutor(agent: agent);
+
+      final result = await executor.invoke({'input': query});
+      return AgentResult(
+        output: result['output'] as String,
+        intermediateSteps: _extractIntermediateSteps(result),
+      );
+    }
+  }
+
+  List<AgentStep> _extractIntermediateSteps(Map<String, dynamic> result) {
+    final steps = <AgentStep>[];
+    final intermediate = result['intermediateSteps'];
+
+    if (intermediate is List) {
+      for (final step in intermediate) {
+        if (step is (AgentAction, String)) {
+          steps.add(
+            AgentStep(
+              toolName: step.$1.tool,
+              toolInput: step.$1.toolInput.toString(),
+              toolOutput: step.$2,
+            ),
+          );
+        }
+      }
+    }
+
+    return steps;
+  }
+}
+
+class AgentResult {
+  final String output;
+  final List<AgentStep> intermediateSteps;
+
+  AgentResult({required this.output, required this.intermediateSteps});
+}
+
+class AgentStep {
+  final String toolName;
+  final String toolInput;
+  final String toolOutput;
+
+  AgentStep({
+    required this.toolName,
+    required this.toolInput,
+    required this.toolOutput,
+  });
+}
+
+// Custom Tools
+final class CalculatorTool extends StringTool {
+  CalculatorTool()
+    : super(
+        name: 'calculator',
+        description:
+            'Useful for performing math calculations. Input should be a mathematical expression like "25 * 4" or "100 / 5".',
+      );
+
+  @override
+  Future<String> invokeInternal(
+    String toolInput, {
+    ToolOptions? options,
+  }) async {
+    try {
+      final sanitized = toolInput.replaceAll(' ', '');
+
+      if (sanitized.contains('*')) {
+        final parts = sanitized.split('*');
+        final result = double.parse(parts[0]) * double.parse(parts[1]);
+        return result.toStringAsFixed(
+          result.truncateToDouble() == result ? 0 : 2,
+        );
+      } else if (sanitized.contains('/')) {
+        final parts = sanitized.split('/');
+        final result = double.parse(parts[0]) / double.parse(parts[1]);
+        return result.toStringAsFixed(
+          result.truncateToDouble() == result ? 0 : 2,
+        );
+      } else if (sanitized.contains('+')) {
+        final parts = sanitized.split('+');
+        final result = double.parse(parts[0]) + double.parse(parts[1]);
+        return result.toStringAsFixed(
+          result.truncateToDouble() == result ? 0 : 2,
+        );
+      } else if (sanitized.contains('-')) {
+        final parts = sanitized.split('-');
+        final result = double.parse(parts[0]) - double.parse(parts[1]);
+        return result.toStringAsFixed(
+          result.truncateToDouble() == result ? 0 : 2,
+        );
+      }
+
+      return 'Could not parse expression: $toolInput';
+    } catch (e) {
+      return 'Error calculating: $e';
+    }
+  }
+}
+
+final class CurrentTimeTool extends StringTool {
+  CurrentTimeTool()
+    : super(
+        name: 'current_time',
+        description:
+            'Returns the current date and time. Use this when the user asks what time it is or the current date.',
+      );
+
+  @override
+  Future<String> invokeInternal(
+    String toolInput, {
+    ToolOptions? options,
+  }) async {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+  }
+}
+
+final class WeatherTool extends StringTool {
+  WeatherTool()
+    : super(
+        name: 'get_weather',
+        description:
+            'Gets the current weather for a city. Input should be a city name.',
+      );
+
+  @override
+  Future<String> invokeInternal(
+    String toolInput, {
+    ToolOptions? options,
+  }) async {
+    final weathers = {
+      'london': '☁️ Cloudy, 12°C',
+      'paris': '🌤️ Partly sunny, 15°C',
+      'tokyo': '☀️ Sunny, 22°C',
+      'new york': '🌧️ Rainy, 8°C',
+      'sydney': '☀️ Clear skies, 28°C',
+      'san francisco': '🌫️ Foggy, 14°C',
+      'warsaw': '❄️ Cold and cloudy, 2°C',
+      'berlin': '🌥️ Overcast, 7°C',
+    };
+
+    final lowerCity = toolInput.toLowerCase().trim();
+    return weathers[lowerCity] ?? '☀️ Pleasant weather, 20°C';
+  }
 }
