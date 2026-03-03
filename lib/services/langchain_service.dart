@@ -18,6 +18,7 @@ enum LLMProvider {
 class LangChainService {
   static LangChainService? _instance;
   String? _apiKey;
+  String? _tavilyApiKey;
   LLMProvider _provider = LLMProvider.openai;
   BaseChatModel? _model;
 
@@ -29,8 +30,14 @@ class LangChainService {
   }
 
   bool get isConfigured => _apiKey != null && _apiKey!.isNotEmpty;
+  bool get isTavilyConfigured => _tavilyApiKey != null && _tavilyApiKey!.isNotEmpty;
   LLMProvider get currentProvider => _provider;
   String? get apiKey => _apiKey;
+  String? get tavilyApiKey => _tavilyApiKey;
+
+  void setTavilyApiKey(String apiKey) {
+    _tavilyApiKey = apiKey;
+  }
 
   void setProvider(LLMProvider provider) {
     if (_provider != provider) {
@@ -243,14 +250,17 @@ Answer:
     final calculatorTool = CalculatorTool();
     final currentTimeTool = CurrentTimeTool();
     final weatherTool = WeatherTool();
-    final webSearchTool = TavilySearchTool();
 
     final tools = <Tool>[
       calculatorTool,
       currentTimeTool,
       weatherTool,
-      webSearchTool,
     ];
+
+    // Only add web search tool if Tavily API key is configured
+    if (isTavilyConfigured) {
+      tools.add(TavilySearchTool(apiKey: _tavilyApiKey!));
+    }
 
     // Create agent based on provider
     if (_provider == LLMProvider.openai) {
@@ -483,9 +493,9 @@ final class WeatherTool extends StringTool {
 }
 
 final class TavilySearchTool extends StringTool {
-  static const String _apiKey = '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';
+  final String apiKey;
 
-  TavilySearchTool()
+  TavilySearchTool({required this.apiKey})
     : super(
         name: 'web_search',
         description:
@@ -502,7 +512,7 @@ final class TavilySearchTool extends StringTool {
         Uri.parse('https://api.tavily.com/search'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'api_key': _apiKey,
+          'api_key': apiKey,
           'query': toolInput,
           'search_depth': 'basic',
           'include_answer': true,

@@ -21,7 +21,9 @@ class ApiKeyDialog extends StatefulWidget {
 
 class _ApiKeyDialogState extends State<ApiKeyDialog> {
   final _controller = TextEditingController();
+  final _tavilyController = TextEditingController();
   bool _obscureText = true;
+  bool _obscureTavilyText = true;
   String? _error;
   late LLMProvider _selectedProvider;
 
@@ -32,11 +34,15 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
     if (LangChainService.instance.apiKey != null) {
       _controller.text = LangChainService.instance.apiKey!;
     }
+    if (LangChainService.instance.tavilyApiKey != null) {
+      _tavilyController.text = LangChainService.instance.tavilyApiKey!;
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _tavilyController.dispose();
     super.dispose();
   }
 
@@ -55,6 +61,13 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
 
     LangChainService.instance.setProvider(_selectedProvider);
     LangChainService.instance.setApiKey(apiKey);
+    
+    // Save Tavily API key if provided
+    final tavilyKey = _tavilyController.text.trim();
+    if (tavilyKey.isNotEmpty) {
+      LangChainService.instance.setTavilyApiKey(tavilyKey);
+    }
+    
     Navigator.of(context).pop(true);
   }
 
@@ -182,6 +195,65 @@ class _ApiKeyDialogState extends State<ApiKeyDialog> {
               _selectedProvider == LLMProvider.openai
                   ? 'Get your key at platform.openai.com'
                   : 'Get your key at aistudio.google.com',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 11,
+                color: AppTheme.textMuted,
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            
+            // Tavily API Key input (optional)
+            Row(
+              children: [
+                Text(
+                  'Tavily API Key',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warningAccent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Optional',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10,
+                      color: AppTheme.warningAccent,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _tavilyController,
+              obscureText: _obscureTavilyText,
+              style: GoogleFonts.jetBrainsMono(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+              ),
+              decoration: InputDecoration(
+                hintText: 'tvly-...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureTavilyText ? Icons.visibility_off : Icons.visibility,
+                    size: 20,
+                  ),
+                  onPressed: () => setState(() => _obscureTavilyText = !_obscureTavilyText),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Required for web search in Tools demo. Get your key at tavily.com',
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 11,
                 color: AppTheme.textMuted,
